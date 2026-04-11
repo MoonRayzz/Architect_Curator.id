@@ -31,8 +31,8 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${manrope.variable}`}>
       <head>
-        {/* Material Symbols Outlined API */}
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=optional" />
+        {/* PERBAIKAN: Mengubah display=optional menjadi display=block agar ikon wajib di-render */}
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block" />
       </head>
       <body className="antialiased selection:bg-tertiary-fixed selection:text-on-tertiary-fixed">
         {/* AuthProvider membungkus seluruh aplikasi di sini */}
