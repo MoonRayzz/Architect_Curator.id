@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -29,6 +29,7 @@ export default function LoginPage() {
         setError("");
 
         try {
+            await setPersistence(auth, browserSessionPersistence);
             await signInWithEmailAndPassword(auth, email, password);
             router.push("/admin"); // Jika sukses, masuk ke admin
         } catch (err: any) {

@@ -104,6 +104,9 @@ export default function AdminProjectsPage() {
                                                 <Link href={`/projects/${project.id}`} target="_blank">
                                                     <button className="p-2 text-outline hover:text-primary transition-colors bg-surface-container hover:bg-surface-container-high rounded-xl"><span className="material-symbols-outlined text-sm">visibility</span></button>
                                                 </Link>
+                                                <Link href={`/admin/projects/${project.id}`}>
+                                                    <button className="p-2 text-outline hover:text-primary transition-colors bg-surface-container hover:bg-surface-container-high rounded-xl"><span className="material-symbols-outlined text-sm">edit</span></button>
+                                                </Link>
                                                 <button onClick={() => handleDelete(project.id)} className="p-2 text-error hover:bg-error hover:text-white transition-colors bg-error/10 rounded-xl"><span className="material-symbols-outlined text-sm">delete</span></button>
                                             </td>
                                         </tr>

@@ -90,6 +90,26 @@ export default function ProjectDetailPage() {
         fetchDetail();
     }, [params.id, router]);
 
+    // Hook untuk navigasi keyboard
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const images = (project?.imageUrls && project.imageUrls.length > 0)
+                ? project.imageUrls
+                : (project?.imageUrl ? [project.imageUrl] : []);
+            
+            if (images.length <= 1) return;
+
+            if (e.key === "ArrowRight") {
+                setActiveImageIndex((prev) => (prev + 1) % images.length);
+            } else if (e.key === "ArrowLeft") {
+                setActiveImageIndex((prev) => (prev - 1 + images.length) % images.length);
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [project]);
+
     if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
@@ -154,6 +174,26 @@ export default function ProjectDetailPage() {
                                 className="relative z-10 w-auto h-auto max-w-full max-h-[85vh] object-contain drop-shadow-2xl animate-fade-in"
                                 key={activeImageIndex}
                             />
+
+                            {/* Navigasi Panah Kiri Kanan */}
+                            {galleryImages.length > 1 && (
+                                <>
+                                    <button
+                                        onClick={() => setActiveImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length)}
+                                        className="absolute left-6 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/70 text-white p-3 md:p-4 rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 active:scale-95 shadow-xl border border-white/10"
+                                        aria-label="Previous image"
+                                    >
+                                        <span className="material-symbols-outlined text-2xl md:text-3xl">chevron_left</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveImageIndex((prev) => (prev + 1) % galleryImages.length)}
+                                        className="absolute right-6 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/70 text-white p-3 md:p-4 rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 active:scale-95 shadow-xl border border-white/10"
+                                        aria-label="Next image"
+                                    >
+                                        <span className="material-symbols-outlined text-2xl md:text-3xl">chevron_right</span>
+                                    </button>
+                                </>
+                            )}
                         </div>
 
                         {galleryImages.length > 1 && (

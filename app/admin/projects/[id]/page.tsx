@@ -11,10 +11,11 @@ interface ProjectData {
     title: string;
     category: string;
     githubUrl: string;
-    demoUrl: string;
+    websiteUrl: string;
     description: string;
-    techStack: string; // Kita simpan sebagai string di form, lalu convert ke array saat simpan
+    tags: string;
     imageUrl: string;
+    featured: boolean;
 }
 
 export default function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
@@ -24,12 +25,13 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
 
     const [formData, setFormData] = useState<ProjectData>({
         title: "",
-        category: "Web",
+        category: "Web Development",
         githubUrl: "",
-        demoUrl: "",
+        websiteUrl: "",
         description: "",
-        techStack: "",
+        tags: "",
         imageUrl: "",
+        featured: false,
     });
 
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -48,15 +50,15 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                     const data = docSnap.data();
                     setFormData({
                         title: data.title || "",
-                        category: data.category || "Web",
+                        category: data.category || "Web Development",
                         githubUrl: data.githubUrl || "",
-                        demoUrl: data.demoUrl || "",
+                        websiteUrl: data.websiteUrl || data.demoUrl || "",
                         description: data.description || "",
-                        // Ubah array techStack ["React", "Next"] kembali ke string "React, Next" untuk input
-                        techStack: data.techStack ? data.techStack.join(", ") : "",
-                        imageUrl: data.imageUrl || "",
+                        tags: data.tags ? data.tags.join(", ") : (data.techStack ? data.techStack.join(", ") : ""),
+                        imageUrl: data.imageUrls && data.imageUrls.length > 0 ? data.imageUrls[0] : (data.imageUrl || ""),
+                        featured: data.featured || false,
                     });
-                    setImagePreview(data.imageUrl || "");
+                    setImagePreview(data.imageUrls && data.imageUrls.length > 0 ? data.imageUrls[0] : (data.imageUrl || ""));
                 } else {
                     alert("Projek tidak ditemukan!");
                     router.push("/admin/projects");
@@ -97,24 +99,32 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                 finalImageUrl = await uploadImageToCloudinary(imageFile);
             }
 
-            // Convert techStack string ke Array
-            const techStackArray = formData.techStack
+            // Convert tags string ke Array
+            const tagsArray = formData.tags
                 .split(",")
-                .map((tech) => tech.trim())
-                .filter((tech) => tech !== "");
+                .map((tag) => tag.trim())
+                .filter((tag) => tag !== "");
 
             // Update di Firestore
             const docRef = doc(db, "projects", id);
-            await updateDoc(docRef, {
+            
+            const updatePayload: any = {
                 title: formData.title,
                 category: formData.category,
                 githubUrl: formData.githubUrl,
-                demoUrl: formData.demoUrl,
+                websiteUrl: formData.websiteUrl,
                 description: formData.description,
-                techStack: techStackArray,
-                imageUrl: finalImageUrl,
+                tags: tagsArray,
+                featured: formData.featured,
                 updatedAt: serverTimestamp(),
-            });
+            };
+
+            // Jika ada gambar baru yang diupload, kita bisa timpa imageUrls (karena form edit ini sementara hanya mendukunga 1 gambar untuk disederhanakan)
+            if (imageFile && finalImageUrl) {
+                updatePayload.imageUrls = [finalImageUrl];
+            }
+
+            await updateDoc(docRef, updatePayload);
 
             alert("Projek berhasil diperbarui!");
             router.push("/admin/projects");
@@ -195,10 +205,10 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                                     onChange={handleInputChange}
                                     className="w-full px-4 py-3 rounded-xl bg-surface-container-low border-none focus:ring-2 focus:ring-tertiary-fixed-dim/50 text-primary font-medium transition-all appearance-none"
                                 >
-                                    <option value="Web">Web</option>
+                                    <option value="Web Development">Web Development</option>
                                     <option value="Mobile App">Mobile App</option>
-                                    <option value="IoT">IoT</option>
-                                    <option value="Backend">Backend</option>
+                                    <option value="UI/UX Design">UI/UX Design</option>
+                                    <option value="System Architecture">System Architecture</option>
                                 </select>
                             </div>
                         </div>
@@ -217,8 +227,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                             <div>
                                 <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">Live Demo URL</label>
                                 <input
-                                    name="demoUrl"
-                                    value={formData.demoUrl}
+                                    name="websiteUrl"
+                                    value={formData.websiteUrl}
                                     onChange={handleInputChange}
                                     className="w-full px-4 py-3 rounded-xl bg-surface-container-low border-none focus:ring-2 focus:ring-tertiary-fixed-dim/50 text-primary font-medium transition-all"
                                     type="url"
@@ -227,10 +237,10 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                         </div>
 
                         <div>
-                            <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">Tech Stack (Pisahkan dengan koma)</label>
+                            <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">Tags (Pisahkan dengan koma)</label>
                             <input
-                                name="techStack"
-                                value={formData.techStack}
+                                name="tags"
+                                value={formData.tags}
                                 onChange={handleInputChange}
                                 className="w-full px-4 py-3 rounded-xl bg-surface-container-low border-none focus:ring-2 focus:ring-tertiary-fixed-dim/50 text-primary font-medium transition-all"
                                 placeholder="Next.js, Tailwind, Firebase"
@@ -248,6 +258,11 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                                 className="w-full px-4 py-3 rounded-xl bg-surface-container-low border-none focus:ring-2 focus:ring-tertiary-fixed-dim/50 text-primary font-medium leading-relaxed transition-all"
                                 rows={5}
                             ></textarea>
+                        </div>
+
+                        <div className="flex items-center gap-3 bg-surface-container-low p-4 rounded-xl">
+                            <input type="checkbox" name="featured" checked={formData.featured} onChange={(e) => setFormData({...formData, featured: e.target.checked})} id="featured" className="w-5 h-5 accent-primary cursor-pointer" />
+                            <label htmlFor="featured" className="text-sm font-bold text-primary cursor-pointer">Tampilkan di Beranda (Featured Project)</label>
                         </div>
 
                         <div className="pt-6 border-t border-outline-variant/10 flex justify-end gap-4">
