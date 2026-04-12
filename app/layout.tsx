@@ -1,44 +1,42 @@
 import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
 import "./globals.css";
-// Menggunakan @/ agar aman dari error relative path
 import { AuthProvider } from "@/context/AuthContext";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
-// Mengatur font Inter (Body)
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: 'swap',
-});
-
-// Mengatur font Manrope (Headline)
-const manrope = Manrope({
-  subsets: ["latin"],
-  variable: "--font-manrope",
-  display: 'swap',
-});
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: 'swap' });
+const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope", display: 'swap' });
 
 export const metadata: Metadata = {
-  title: "ArchitectCurator | Digital Precision",
-  description: "Portfolio of Digital Architect and Software Engineer.",
+  // WAJIB: Ganti dengan domain Vercel Anda agar OpenGraph (Gambar Sosmed) bekerja
+  metadataBase: new URL('https://architect-curator.vercel.app'), 
+  title: {
+    default: "ArchitectCurator | Digital Precision & Software Engineering",
+    template: "%s | ArchitectCurator" // Otomatis menambahkan "| ArchitectCurator" di belakang judul halaman lain
+  },
+  description: "Portfolio of I Made Aris Danuarta - Professional Software Engineer specializing in Mobile Apps & Web Development.",
+  openGraph: {
+    type: "website",
+    locale: "id_ID",
+    siteName: "ArchitectCurator",
+  },
+  twitter: {
+    card: "summary_large_image",
+  }
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${manrope.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${manrope.variable}`}>
       <head>
-        {/* PERBAIKAN: Mengubah display=optional menjadi display=block agar ikon wajib di-render */}
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block" />
       </head>
       <body className="antialiased selection:bg-tertiary-fixed selection:text-on-tertiary-fixed">
-        {/* AuthProvider membungkus seluruh aplikasi di sini */}
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -2,19 +2,20 @@
 
 import Link from "next/link";
 import AnimateIn from "@/components/shared/AnimateIn";
-import VisitorTracker from "@/components/shared/VisitorTracker"; // Import Sensor Pelacak
+import VisitorTracker from "@/components/shared/VisitorTracker"; 
 import { useEffect, useState } from "react";
 import { collection, query, where, getDocs, limit, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-// Interface untuk Type Safety
+// PERBAIKAN 1: Tambahkan imageUrls (Array) pada Interface
 interface Project {
     id: string;
     title: string;
     category: string;
     tags: string[];
     description: string;
-    imageUrl: string;
+    imageUrl?: string;
+    imageUrls?: string[]; // <-- Ini yang baru
 }
 
 interface ProfileData {
@@ -223,32 +224,40 @@ export default function HomePage() {
                 </AnimateIn>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                    {featuredProjects.map((project, index) => (
-                        <AnimateIn key={project.id} delay={0.2 + (index * 0.1)}>
-                            <Link href="/projects" className="group cursor-pointer block">
-                                <div className="aspect-[16/10] overflow-hidden rounded-3xl bg-surface-container relative mb-6 shadow-sm border border-outline-variant/10">
-                                    <img
-                                        alt={project.title}
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                                        src={project.imageUrl}
-                                    />
-                                    <div className="absolute top-4 right-4 flex gap-2">
-                                        {project.tags?.slice(0, 2).map((tag) => (
-                                            <span key={tag} className="px-3 py-1 rounded-full bg-white/95 backdrop-blur text-[9px] font-black uppercase text-primary tracking-tighter">
-                                                {tag}
-                                            </span>
-                                        ))}
+                    {featuredProjects.map((project, index) => {
+                        // PERBAIKAN 2: Logika pengecekan gambar (Ambil gambar pertama jika ada array)
+                        const coverImage = (project.imageUrls && project.imageUrls.length > 0) 
+                            ? project.imageUrls[0] 
+                            : (project.imageUrl || "");
+
+                        return (
+                            <AnimateIn key={project.id} delay={0.2 + (index * 0.1)}>
+                                {/* PERBAIKAN 3: Link sekarang mengarah spesifik ke ID project tersebut */}
+                                <Link href={`/projects/${project.id}`} className="group cursor-pointer block">
+                                    <div className="aspect-[16/10] overflow-hidden rounded-3xl bg-surface-container relative mb-6 shadow-sm border border-outline-variant/10">
+                                        <img
+                                            alt={project.title}
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                            src={coverImage} // <-- Gunakan variabel coverImage
+                                        />
+                                        <div className="absolute top-4 right-4 flex gap-2">
+                                            {project.tags?.slice(0, 2).map((tag) => (
+                                                <span key={tag} className="px-3 py-1 rounded-full bg-white/95 backdrop-blur text-[9px] font-black uppercase text-primary tracking-tighter">
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="space-y-2 px-2">
-                                    <h3 className="text-2xl font-bold text-primary group-hover:text-secondary transition-colors font-headline">{project.title}</h3>
-                                    <p className="text-on-surface-variant line-clamp-2 text-sm leading-relaxed">
-                                        {project.description}
-                                    </p>
-                                </div>
-                            </Link>
-                        </AnimateIn>
-                    ))}
+                                    <div className="space-y-2 px-2">
+                                        <h3 className="text-2xl font-bold text-primary group-hover:text-secondary transition-colors font-headline">{project.title}</h3>
+                                        <p className="text-on-surface-variant line-clamp-2 text-sm leading-relaxed">
+                                            {project.description}
+                                        </p>
+                                    </div>
+                                </Link>
+                            </AnimateIn>
+                        );
+                    })}
                 </div>
             </section>
 

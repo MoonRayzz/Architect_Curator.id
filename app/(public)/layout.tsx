@@ -1,27 +1,20 @@
-import React from "react";
-import TopNavBar from "@/components/shared/TopNavBar"; // <-- 1. Import Navbar
-import PublicFooter from "@/components/shared/PublicFooter"; // <-- 2. Import Footer
+import { Metadata } from "next";
+import TopNavBar from "@/components/shared/TopNavBar";
+import PublicFooter from "@/components/shared/PublicFooter";
 
-export default function PublicLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
+export const metadata: Metadata = {
+  title: "Home | ArchitectCurator",
+  description: "Selamat datang di ArchitectCurator. Temukan solusi arsitektur digital, web development, dan mobile app terbaik.",
+};
+
+export default function PublicLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className="min-h-screen flex flex-col bg-background text-on-background selection:bg-tertiary-fixed selection:text-on-tertiary-fixed">
-
-            {/* 3. Render Navbar (Akan selalu menempel di atas karena fixed) */}
             <TopNavBar />
-
-            {/* 4. Konten Halaman Utama */}
-            {/* Kita tambahkan pt-24 (padding-top) agar konten tidak tertutup oleh Navbar yang fixed */}
             <div className="flex-1 pt-24">
                 {children}
             </div>
-
-            {/* 5. Render Footer Dinamis di paling bawah */}
             <PublicFooter />
-
         </div>
     );
 }

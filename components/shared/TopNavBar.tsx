@@ -1,10 +1,19 @@
 "use client";
 
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes"; // Hook untuk ganti tema
 
 export default function TopNavBar() {
     const pathname = usePathname();
+    const { theme, setTheme } = useTheme();
+    const [mounted, setMounted] = useState(false);
+
+    // Pastikan komponen sudah terpasang untuk menghindari hydration mismatch
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const navLinks = [
         { name: "Home", path: "/" },
@@ -14,13 +23,13 @@ export default function TopNavBar() {
     ];
 
     return (
-        <nav className="fixed top-0 w-full z-50 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-xl shadow-sm dark:shadow-none">
+        <nav className="fixed top-0 w-full z-50 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-xl shadow-sm dark:shadow-none border-b border-outline-variant/5">
             <div className="flex justify-between items-center px-8 py-4 max-w-7xl mx-auto">
                 <Link href="/" className="text-xl font-bold tracking-tighter text-slate-900 dark:text-slate-50 uppercase font-headline">
                     ArchitectCurator
                 </Link>
 
-                <div className="hidden md:flex space-x-8">
+                <div className="hidden md:flex space-x-8 items-center">
                     {navLinks.map((link) => {
                         const isActive =
                             link.path === "/"
@@ -40,6 +49,19 @@ export default function TopNavBar() {
                             </Link>
                         );
                     })}
+
+                    {/* DARK MODE TOGGLE BUTTON */}
+                    <button
+                        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                        className="p-2 rounded-xl bg-surface-container hover:bg-surface-container-high transition-colors flex items-center justify-center text-primary"
+                        aria-label="Toggle Dark Mode"
+                    >
+                        {mounted && (
+                            <span className="material-symbols-outlined text-[20px]">
+                                {theme === "dark" ? "light_mode" : "dark_mode"}
+                            </span>
+                        )}
+                    </button>
                 </div>
 
                 <Link href="/services#contact">
