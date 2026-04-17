@@ -1,3 +1,4 @@
+// app\(public)\projects\[id]\layout.tsx
 import { Metadata, ResolvingMetadata } from "next";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";

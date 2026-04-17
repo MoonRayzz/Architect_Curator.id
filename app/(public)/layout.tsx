@@ -1,3 +1,4 @@
+// app\(public)\layout.tsx
 import { Metadata } from "next";
 import TopNavBar from "@/components/shared/TopNavBar";
 import PublicFooter from "@/components/shared/PublicFooter";

@@ -1,3 +1,4 @@
+// app\(public)\loading.tsx
 export default function Loading() {
     return (
         <div className="max-w-7xl mx-auto px-8 py-32 animate-pulse w-full">
