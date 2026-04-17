@@ -6,7 +6,7 @@ import { MetadataRoute } from "next";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-const BASE_URL = "https://architect-curator.vercel.app";
+const BASE_URL = "https://architect-curator-id.vercel.app";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // ── Static routes ──────────────────────────────────────────

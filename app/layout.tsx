@@ -9,7 +9,7 @@ const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope", displa
 
 export const metadata: Metadata = {
   // WAJIB: Ganti dengan domain Vercel Anda agar OpenGraph (Gambar Sosmed) bekerja
-  metadataBase: new URL('https://architect-curator.vercel.app'), 
+  metadataBase: new URL('https://architect-curator-id.vercel.app'),
   title: {
     default: "ArchitectCurator | Digital Precision & Software Engineering",
     template: "%s | ArchitectCurator" // Otomatis menambahkan "| ArchitectCurator" di belakang judul halaman lain
