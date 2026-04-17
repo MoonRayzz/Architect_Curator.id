@@ -22,7 +22,11 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-  }
+  },
+  // Implementasi verifikasi Google Search Console yang benar di Next.js App Router
+  verification: {
+    google: "tGznE5rNerGCz4Ga_DVEk8bRQkBwY6QuR0v1A9XzaqM",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

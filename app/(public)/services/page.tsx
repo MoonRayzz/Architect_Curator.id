@@ -1,4 +1,7 @@
 // app\(public)\services\page.tsx
+// Fix #4: Tambah rate limiting sederhana via localStorage
+// Cegah user spam submit form < 60 detik
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -14,7 +17,6 @@ interface ServiceItem {
     imageUrl: string;
 }
 
-// State untuk form contact
 interface ContactForm {
     name: string;
     email: string;
@@ -22,13 +24,14 @@ interface ContactForm {
     message: string;
 }
 
-type SubmitStatus = "idle" | "loading" | "success" | "error";
+type SubmitStatus = "idle" | "loading" | "success" | "error" | "ratelimit";
+
+const RATE_LIMIT_KEY = "ac_last_message_ts";
+const RATE_LIMIT_SECONDS = 60;
 
 export default function ServicesPage() {
     const [services, setServices] = useState<ServiceItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-
-    // --- STATE CONTACT FORM ---
     const [formData, setFormData] = useState<ContactForm>({
         name: "",
         email: "",
@@ -37,17 +40,16 @@ export default function ServicesPage() {
     });
     const [submitStatus, setSubmitStatus] = useState<SubmitStatus>("idle");
     const [errorMsg, setErrorMsg] = useState("");
+    const [countdown, setCountdown] = useState(0);
 
     useEffect(() => {
         const fetchServices = async () => {
             try {
                 const docRef = doc(db, "portfolio_content", "services");
                 const docSnap = await getDoc(docRef);
-
                 if (docSnap.exists() && docSnap.data().items) {
                     const items = docSnap.data().items as ServiceItem[];
                     setServices(items);
-                    // Set default category dari service pertama
                     if (items.length > 0) {
                         setFormData(prev => ({ ...prev, category: items[0].title }));
                     }
@@ -58,18 +60,33 @@ export default function ServicesPage() {
                 setIsLoading(false);
             }
         };
-
         fetchServices();
     }, []);
 
-    // --- HANDLER FORM ---
+    // Countdown timer saat rate limited
+    useEffect(() => {
+        if (submitStatus !== "ratelimit") return;
+        const interval = setInterval(() => {
+            const last = parseInt(localStorage.getItem(RATE_LIMIT_KEY) || "0", 10);
+            const elapsed = Math.floor((Date.now() - last) / 1000);
+            const remaining = RATE_LIMIT_SECONDS - elapsed;
+            if (remaining <= 0) {
+                setSubmitStatus("idle");
+                setCountdown(0);
+                clearInterval(interval);
+            } else {
+                setCountdown(remaining);
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [submitStatus]);
+
     const handleInputChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
     ) => {
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
-    // --- VALIDASI SEDERHANA ---
     const validateForm = (): string | null => {
         if (!formData.name.trim()) return "Nama tidak boleh kosong.";
         if (!formData.email.trim()) return "Email/WhatsApp tidak boleh kosong.";
@@ -78,12 +95,33 @@ export default function ServicesPage() {
         return null;
     };
 
-    // --- SUBMIT KE FIRESTORE ---
+    // Cek rate limit dari localStorage
+    const checkRateLimit = (): boolean => {
+        try {
+            const last = parseInt(localStorage.getItem(RATE_LIMIT_KEY) || "0", 10);
+            const elapsed = Math.floor((Date.now() - last) / 1000);
+            if (last && elapsed < RATE_LIMIT_SECONDS) {
+                setCountdown(RATE_LIMIT_SECONDS - elapsed);
+                return false; // masih dalam cooldown
+            }
+        } catch {
+            // localStorage tidak tersedia (private mode) — izinkan submit
+        }
+        return true;
+    };
+
     const handleSubmit = async () => {
+        // 1. Validasi field
         const validationError = validateForm();
         if (validationError) {
             setErrorMsg(validationError);
             setSubmitStatus("error");
+            return;
+        }
+
+        // 2. Cek rate limit
+        if (!checkRateLimit()) {
+            setSubmitStatus("ratelimit");
             return;
         }
 
@@ -99,8 +137,12 @@ export default function ServicesPage() {
                 createdAt: serverTimestamp(),
             });
 
+            // Catat timestamp submit ke localStorage
+            try {
+                localStorage.setItem(RATE_LIMIT_KEY, Date.now().toString());
+            } catch { /* ignore */ }
+
             setSubmitStatus("success");
-            // Reset form setelah sukses
             setFormData({
                 name: "",
                 email: "",
@@ -116,7 +158,7 @@ export default function ServicesPage() {
 
     return (
         <main className="pb-20 px-6 max-w-7xl mx-auto overflow-hidden">
-            {/* Hero Section */}
+            {/* Hero */}
             <header className="mb-20 text-center md:text-left max-w-3xl">
                 <AnimateIn delay={0.1} direction="up">
                     <span className="bg-tertiary-fixed text-on-tertiary-fixed px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4 inline-block">
@@ -130,33 +172,40 @@ export default function ServicesPage() {
                 </AnimateIn>
                 <AnimateIn delay={0.3} direction="up">
                     <p className="text-lg text-on-surface-variant leading-relaxed font-body max-w-2xl">
-                        Kami menjembatani kesenjangan antara persyaratan teknik yang kompleks dan pengalaman estetika kelas atas. Mulai dari infrastruktur web hingga ekosistem IoT.
+                        Kami menjembatani kesenjangan antara persyaratan teknik yang kompleks dan pengalaman
+                        estetika kelas atas. Mulai dari infrastruktur web hingga ekosistem IoT.
                     </p>
                 </AnimateIn>
             </header>
 
-            {/* Services Catalog: Dynamic Bento Grid Style */}
+            {/* Services Catalog */}
             {isLoading ? (
                 <div className="py-24 flex flex-col justify-center items-center">
-                    <span className="material-symbols-outlined animate-spin text-5xl text-primary mb-4">progress_activity</span>
-                    <p className="font-bold text-on-surface-variant uppercase tracking-widest text-xs">Architecting layout...</p>
+                    <span className="material-symbols-outlined animate-spin text-5xl text-primary mb-4">
+                        progress_activity
+                    </span>
+                    <p className="font-bold text-on-surface-variant uppercase tracking-widest text-xs">
+                        Architecting layout...
+                    </p>
                 </div>
             ) : (
                 <section className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-32">
                     {services.map((service, index) => {
-                        const isLarge = (index % 4 === 0 || index % 4 === 3);
+                        const isLarge = index % 4 === 0 || index % 4 === 3;
                         const colSpan = isLarge ? "md:col-span-7" : "md:col-span-5";
                         const isPrimaryTheme = index === 1;
 
                         return (
                             <div key={index} className={colSpan}>
                                 <AnimateIn delay={0.1 * (index % 3)} direction="up">
-                                    <div className={`group rounded-3xl overflow-hidden transition-all duration-300 hover:-translate-y-2 h-full flex flex-col ${isPrimaryTheme
-                                        ? 'bg-primary-container text-on-primary'
-                                        : 'bg-surface-container-lowest border border-outline-variant/10 shadow-sm'
-                                        }`}>
-
-                                        {service.imageUrl && (index % 4 !== 3) && (
+                                    <div
+                                        className={`group rounded-3xl overflow-hidden transition-all duration-300 hover:-translate-y-2 h-full flex flex-col ${
+                                            isPrimaryTheme
+                                                ? "bg-primary-container text-on-primary"
+                                                : "bg-surface-container-lowest border border-outline-variant/10 shadow-sm"
+                                        }`}
+                                    >
+                                        {service.imageUrl && index % 4 !== 3 && (
                                             <div className="h-64 overflow-hidden">
                                                 <img
                                                     className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
@@ -166,34 +215,29 @@ export default function ServicesPage() {
                                             </div>
                                         )}
 
-                                        <div className={`flex-1 flex ${index % 4 === 3 ? 'flex-col md:flex-row' : 'flex-col'}`}>
-                                            <div className={`p-8 flex-1 flex flex-col justify-between ${index % 4 === 3 ? 'md:w-1/2' : 'w-full'}`}>
+                                        <div className={`flex-1 flex ${index % 4 === 3 ? "flex-col md:flex-row" : "flex-col"}`}>
+                                            <div className={`p-8 flex-1 flex flex-col justify-between ${index % 4 === 3 ? "md:w-1/2" : "w-full"}`}>
                                                 <div>
                                                     <div className="flex justify-between items-start mb-4">
-                                                        <h3 className={`text-2xl font-bold tracking-tight font-headline ${isPrimaryTheme ? 'text-white' : 'text-primary'}`}>
+                                                        <h3 className={`text-2xl font-bold tracking-tight font-headline ${isPrimaryTheme ? "text-white" : "text-primary"}`}>
                                                             {service.title}
                                                         </h3>
-                                                        <span className={`material-symbols-outlined ${isPrimaryTheme ? 'text-tertiary-fixed-dim' : 'text-tertiary'}`}>
+                                                        <span className={`material-symbols-outlined ${isPrimaryTheme ? "text-tertiary-fixed-dim" : "text-tertiary"}`}>
                                                             {service.icon}
                                                         </span>
                                                     </div>
-                                                    <p className={`text-sm leading-relaxed mb-6 ${isPrimaryTheme ? 'text-on-primary-container' : 'text-on-surface-variant'}`}>
+                                                    <p className={`text-sm leading-relaxed mb-6 ${isPrimaryTheme ? "text-on-primary-container" : "text-on-surface-variant"}`}>
                                                         {service.description}
                                                     </p>
                                                 </div>
-
                                                 <div className="mt-auto">
                                                     <div className="flex gap-2 flex-wrap mb-4">
                                                         {service.tags.map(tag => (
-                                                            <span key={tag} className={`px-3 py-1 text-[10px] font-bold uppercase tracking-tighter rounded-full ${isPrimaryTheme
-                                                                ? 'bg-white/10 text-white'
-                                                                : 'bg-surface-container text-on-surface-variant'
-                                                                }`}>
+                                                            <span key={tag} className={`px-3 py-1 text-[10px] font-bold uppercase tracking-tighter rounded-full ${isPrimaryTheme ? "bg-white/10 text-white" : "bg-surface-container text-on-surface-variant"}`}>
                                                                 {tag}
                                                             </span>
                                                         ))}
                                                     </div>
-
                                                     {isPrimaryTheme ? (
                                                         <>
                                                             <div className="h-px bg-white/10 w-full mb-4"></div>
@@ -205,14 +249,15 @@ export default function ServicesPage() {
                                                     ) : (
                                                         isLarge && (
                                                             <span className="inline-flex items-center gap-2 text-tertiary font-bold text-sm">
-                                                                View Blueprint <span className="material-symbols-outlined text-sm">settings_input_component</span>
+                                                                View Blueprint{" "}
+                                                                <span className="material-symbols-outlined text-sm">settings_input_component</span>
                                                             </span>
                                                         )
                                                     )}
                                                 </div>
                                             </div>
 
-                                            {service.imageUrl && (index % 4 === 3) && (
+                                            {service.imageUrl && index % 4 === 3 && (
                                                 <div className="md:w-1/2 h-64 md:h-full">
                                                     <img
                                                         className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
@@ -230,17 +275,18 @@ export default function ServicesPage() {
                 </section>
             )}
 
-            {/* ============================================
-                Contact / Hire Me Section — FULLY FUNCTIONAL
-                ============================================ */}
+            {/* ── CONTACT SECTION ── */}
             <section className="max-w-5xl mx-auto" id="contact">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-start">
-                    {/* Info Kiri */}
+                    {/* Info */}
                     <div>
                         <AnimateIn delay={0.1} direction="right">
-                            <h2 className="text-4xl font-extrabold tracking-tighter text-primary mb-4 font-headline">Let's build the future.</h2>
+                            <h2 className="text-4xl font-extrabold tracking-tighter text-primary mb-4 font-headline">
+                                Let's build the future.
+                            </h2>
                             <p className="text-on-surface-variant leading-relaxed mb-8">
-                                Siap untuk memulai proyek? Isi ringkasan di bawah ini dan tim teknis kami akan meninjau persyaratan Anda dalam waktu 24 jam.
+                                Siap untuk memulai proyek? Isi ringkasan di bawah ini dan tim teknis kami akan
+                                meninjau persyaratan Anda dalam waktu 24 jam.
                             </p>
                             <div className="space-y-6">
                                 <div className="flex items-center gap-4">
@@ -248,7 +294,9 @@ export default function ServicesPage() {
                                         <span className="material-symbols-outlined text-primary">mail</span>
                                     </div>
                                     <div>
-                                        <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Email Us</p>
+                                        <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
+                                            Email Us
+                                        </p>
                                         <p className="font-semibold text-primary">arisftp2@gmail.com</p>
                                     </div>
                                 </div>
@@ -257,7 +305,9 @@ export default function ServicesPage() {
                                         <span className="material-symbols-outlined text-primary">chat_bubble</span>
                                     </div>
                                     <div>
-                                        <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">WhatsApp</p>
+                                        <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
+                                            WhatsApp
+                                        </p>
                                         <p className="font-semibold text-primary">+62 851 5724 4627</p>
                                     </div>
                                 </div>
@@ -265,11 +315,11 @@ export default function ServicesPage() {
                         </AnimateIn>
                     </div>
 
-                    {/* Form Kanan */}
+                    {/* Form */}
                     <div className="bg-surface-container-low p-8 rounded-xl shadow-sm border border-outline-variant/10">
                         <AnimateIn delay={0.2} direction="left">
 
-                            {/* SUCCESS STATE */}
+                            {/* SUCCESS */}
                             {submitStatus === "success" ? (
                                 <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
                                     <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center">
@@ -286,9 +336,28 @@ export default function ServicesPage() {
                                         Kirim Pesan Lain
                                     </button>
                                 </div>
+
+                            ) : submitStatus === "ratelimit" ? (
+                                /* RATE LIMITED */
+                                <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+                                    <div className="w-16 h-16 rounded-full bg-surface-container-highest flex items-center justify-center">
+                                        <span className="material-symbols-outlined text-outline text-3xl">timer</span>
+                                    </div>
+                                    <h3 className="text-xl font-bold text-primary font-headline">Terlalu Cepat!</h3>
+                                    <p className="text-on-surface-variant text-sm leading-relaxed max-w-xs">
+                                        Pesan sudah terkirim. Tunggu sebentar sebelum mengirim pesan berikutnya.
+                                    </p>
+                                    <div className="flex items-center gap-2 bg-surface-container px-6 py-3 rounded-full">
+                                        <span className="material-symbols-outlined text-sm text-primary">hourglass_bottom</span>
+                                        <span className="text-sm font-black text-primary tabular-nums">
+                                            {countdown}s
+                                        </span>
+                                    </div>
+                                </div>
+
                             ) : (
+                                /* FORM */
                                 <div className="space-y-6">
-                                    {/* ERROR BANNER */}
                                     {submitStatus === "error" && errorMsg && (
                                         <div className="flex items-start gap-3 p-4 rounded-xl bg-error-container text-on-error-container text-sm font-medium">
                                             <span className="material-symbols-outlined text-lg flex-shrink-0">error</span>
@@ -296,77 +365,71 @@ export default function ServicesPage() {
                                         </div>
                                     )}
 
-                                    <div className="grid grid-cols-1 gap-6">
-                                        {/* Nama */}
-                                        <div>
-                                            <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2">
-                                                Full Name <span className="text-error">*</span>
-                                            </label>
-                                            <input
-                                                name="name"
-                                                value={formData.name}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 rounded-xl bg-surface-container-lowest border-none focus:ring-2 focus:ring-tertiary-fixed-dim/30 placeholder:text-outline-variant text-primary font-medium transition-all outline-none"
-                                                placeholder="John Architect"
-                                                type="text"
-                                            />
-                                        </div>
-
-                                        {/* Email / WhatsApp */}
-                                        <div>
-                                            <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2">
-                                                Email / WhatsApp <span className="text-error">*</span>
-                                            </label>
-                                            <input
-                                                name="email"
-                                                value={formData.email}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 rounded-xl bg-surface-container-lowest border-none focus:ring-2 focus:ring-tertiary-fixed-dim/30 placeholder:text-outline-variant text-primary font-medium transition-all outline-none"
-                                                placeholder="hello@company.com"
-                                                type="text"
-                                            />
-                                        </div>
-
-                                        {/* Service Category */}
-                                        <div>
-                                            <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2">
-                                                Service Category
-                                            </label>
-                                            <select
-                                                name="category"
-                                                value={formData.category}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 rounded-xl bg-surface-container-lowest border-none focus:ring-2 focus:ring-tertiary-fixed-dim/30 text-primary font-medium transition-all appearance-none outline-none"
-                                            >
-                                                {services.map((s, i) => (
-                                                    <option key={i} value={s.title}>{s.title}</option>
-                                                ))}
-                                                {services.length === 0 && (
-                                                    <option value="General Inquiry">General Inquiry</option>
-                                                )}
-                                            </select>
-                                        </div>
-
-                                        {/* Pesan */}
-                                        <div>
-                                            <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2">
-                                                Message / Brief <span className="text-error">*</span>
-                                            </label>
-                                            <textarea
-                                                name="message"
-                                                value={formData.message}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 rounded-xl bg-surface-container-lowest border-none focus:ring-2 focus:ring-tertiary-fixed-dim/30 placeholder:text-outline-variant text-primary font-medium transition-all outline-none resize-none"
-                                                placeholder="Tell us about your project requirements..."
-                                                rows={4}
-                                            />
-                                            <p className="text-[10px] text-outline mt-1 text-right">
-                                                {formData.message.length} karakter
-                                            </p>
-                                        </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2">
+                                            Full Name <span className="text-error">*</span>
+                                        </label>
+                                        <input
+                                            name="name"
+                                            value={formData.name}
+                                            onChange={handleInputChange}
+                                            maxLength={100}
+                                            className="w-full px-4 py-3 rounded-xl bg-surface-container-lowest border-none focus:ring-2 focus:ring-tertiary-fixed-dim/30 placeholder:text-outline-variant text-primary font-medium transition-all outline-none"
+                                            placeholder="John Architect"
+                                        />
                                     </div>
 
-                                    {/* Submit Button */}
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2">
+                                            Email / WhatsApp <span className="text-error">*</span>
+                                        </label>
+                                        <input
+                                            name="email"
+                                            value={formData.email}
+                                            onChange={handleInputChange}
+                                            maxLength={200}
+                                            className="w-full px-4 py-3 rounded-xl bg-surface-container-lowest border-none focus:ring-2 focus:ring-tertiary-fixed-dim/30 placeholder:text-outline-variant text-primary font-medium transition-all outline-none"
+                                            placeholder="hello@company.com"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2">
+                                            Service Category
+                                        </label>
+                                        <select
+                                            name="category"
+                                            value={formData.category}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-3 rounded-xl bg-surface-container-lowest border-none focus:ring-2 focus:ring-tertiary-fixed-dim/30 text-primary font-medium transition-all appearance-none outline-none"
+                                        >
+                                            {services.map((s, i) => (
+                                                <option key={i} value={s.title}>{s.title}</option>
+                                            ))}
+                                            {services.length === 0 && (
+                                                <option value="General Inquiry">General Inquiry</option>
+                                            )}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2">
+                                            Message / Brief <span className="text-error">*</span>
+                                        </label>
+                                        <textarea
+                                            name="message"
+                                            value={formData.message}
+                                            onChange={handleInputChange}
+                                            maxLength={2000}
+                                            className="w-full px-4 py-3 rounded-xl bg-surface-container-lowest border-none focus:ring-2 focus:ring-tertiary-fixed-dim/30 placeholder:text-outline-variant text-primary font-medium transition-all outline-none resize-none"
+                                            placeholder="Tell us about your project requirements..."
+                                            rows={4}
+                                        />
+                                        <p className="text-[10px] text-outline mt-1 text-right">
+                                            {formData.message.length}/2000
+                                        </p>
+                                    </div>
+
                                     <button
                                         onClick={handleSubmit}
                                         disabled={submitStatus === "loading"}
